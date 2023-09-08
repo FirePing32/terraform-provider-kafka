@@ -6,6 +6,10 @@ import (
 	"regexp"
 	"net/http"
 	"io"
+	"os/exec"
+	"net"
+	"strconv"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func validateName(v interface{}, k string) (ws []string, es []error) {
@@ -91,6 +95,33 @@ func downloadKafka() error {
 	_, error := io.Copy(out, resp.Body)
 	if error != nil {
     	return fmt.Errorf("%s", err)
+    }
+
+	return nil
+}
+
+func setupKafka(d *schema.ResourceData) error {
+	for _,port := range d.Get("ports").([]int) {
+		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", strconv.Itoa(port)), 5000)
+		if conn != nil {
+			conn.Close()
+			return fmt.Errorf("port: %d is aleady in use. Please use a different port", port)
+		}
+	}
+	_, javaerr := exec.Command("/bin/bash", "./../scripts/installJava.sh").Output()
+
+    if javaerr != nil {
+    	return fmt.Errorf("error: %s", javaerr)
+    }
+
+	downloadkafka := downloadKafka()
+	if downloadkafka != nil {
+    	return fmt.Errorf("error: %s", downloadkafka)
+    }
+
+	_, kafkaerr := exec.Command("/bin/bash", "./../scripts/installKafka.sh").Output()
+	if kafkaerr != nil {
+    	return fmt.Errorf("error: %s", kafkaerr)
     }
 
 	return nil

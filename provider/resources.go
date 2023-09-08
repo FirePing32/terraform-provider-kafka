@@ -2,9 +2,7 @@ package provider
 
 import (
 	"fmt"
-	"os/exec"
-	"net"
-	"strconv"
+
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
@@ -37,20 +35,11 @@ func clusterItem() *schema.Resource {
 }
 
 func clusterCreateItem(d *schema.ResourceData, m interface{}) error {
-	for _,port := range d.Get("ports").([]int) {
-		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", strconv.Itoa(port)), 5000)
-		if conn != nil {
-			conn.Close()
-			return fmt.Errorf("port: %d is aleady in use. Please use a different port", port)
-		}
+
+	setupkafka := setupKafka(d)
+	if setupkafka != nil {
+		return fmt.Errorf("error: %s", setupkafka)
 	}
-	_, err := exec.Command("/bin/bash", "./../scripts/installJava.sh").Output()
-
-    if err != nil {
-    	return fmt.Errorf("error: %s", err)
-    }
-
-
 
     return nil
 }
