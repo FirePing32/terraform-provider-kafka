@@ -10,4 +10,5 @@ else
     sudo apt install default-jre
     sudo apt install default-jdk
     echo installed latest version of Java JRE and JDK
+    exit 0
 fi

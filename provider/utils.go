@@ -108,7 +108,7 @@ func downloadKafka() error {
 		}
 
     } else {
-		if _, err := os.Stat(fmt.Sprint(kafkaDir, "/", "kafka.tgz")); err != nil {
+		if _, err := os.Stat(fmt.Sprint(kafkaDir, "/kafka.tgz")); err != nil {
 			downloadbinary := downloadBinary(kafkaDir)
 			if downloadbinary != nil {
 				return fmt.Errorf("%s", downloadbinary)
@@ -138,10 +138,12 @@ func setupKafka(d *schema.ResourceData) error {
     	return fmt.Errorf("error: %s", downloadkafka)
     }
 
-	_, kafkaerr := exec.Command("/bin/bash", "./../scripts/installKafka.sh").Output()
-	if kafkaerr != nil {
-    	return fmt.Errorf("error: %s", kafkaerr)
-    }
+	if _, err := os.Stat(fmt.Sprint(kafkaDir, "/kafka")); err != nil {
+		_, kafkaerr := exec.Command("/bin/bash", "./../scripts/installKafka.sh").Output()
+		if kafkaerr != nil {
+			return fmt.Errorf("error: %s", kafkaerr)
+		}
+	}
 
 	return nil
 }
