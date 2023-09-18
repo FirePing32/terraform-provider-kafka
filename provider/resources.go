@@ -34,9 +34,9 @@ func clusterItem() *schema.Resource {
 	}
 }
 
-func clusterCreateItem(d *schema.ResourceData, m interface{}) error {
+func clusterCreateItem(resData *schema.ResourceData, m interface{}) error {
 
-	setupkafka := setupKafka(d)
+	setupkafka := setupKafka(resData)
 	if setupkafka != nil {
 		return fmt.Errorf("error: %s", setupkafka)
 	}

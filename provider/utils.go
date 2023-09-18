@@ -73,29 +73,48 @@ func createHomeDir(dirname string) (string, error) {
 	return dirPath, nil
 }
 
-func downloadKafka() error {
-
-	dirPath, err := createHomeDir(".kafka")
-	if err != nil {
-    	return fmt.Errorf("%s", err)
-    }
-
+func downloadBinary(dirPath string) error {
 	out, err := os.Create(fmt.Sprint(dirPath, "kafka.tgz"))
 	if err != nil {
-    	return fmt.Errorf("%s", err)
-    }
+		return fmt.Errorf("%s", err)
+	}
 	defer out.Close()
 
 	resp, err := http.Get(kafkaDownloadUri)
 	if err != nil {
-    	return fmt.Errorf("%s", err)
-    }
+		return fmt.Errorf("%s", err)
+	}
 	defer resp.Body.Close()
 
 	_, error := io.Copy(out, resp.Body)
 	if error != nil {
-    	return fmt.Errorf("%s", err)
-    }
+		return fmt.Errorf("%s", err)
+	}
+
+	return nil
+}
+
+func downloadKafka() error {
+
+	if _, err := os.Stat(kafkaDir); os.IsNotExist(err) {
+      	dirPath, err := createHomeDir(".kafka")
+		if err != nil {
+			return fmt.Errorf("%s", err)
+		}
+
+		downloadbinary := downloadBinary(dirPath)
+		if downloadbinary != nil {
+			return fmt.Errorf("%s", downloadbinary)
+		}
+
+    } else {
+		if _, err := os.Stat(fmt.Sprint(kafkaDir, "/", "kafka.tgz")); err != nil {
+			downloadbinary := downloadBinary(kafkaDir)
+			if downloadbinary != nil {
+				return fmt.Errorf("%s", downloadbinary)
+			}
+		}
+	}
 
 	return nil
 }
