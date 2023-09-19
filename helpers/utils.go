@@ -157,23 +157,29 @@ func SetupKafka(d *schema.ResourceData) error {
 func StartKafka(d *schema.ResourceData) error {
 	replicas := d.Get("replicas").(int)
 
-	for i := 0; i < replicas; i++ {
-		    f, createerror := os.Create("$HOME/.kafka/kafka/config")
-			check(createerror)
-			defer f.Close()
-			_, writeerr := f.WriteString(fmt.Sprintf(serverProp, i, 9092, i))
-    		check(writeerr)
-
-	}
+	zk, createerror := os.Create("$HOME/.kafka/kafka/config/zookeeper.properties")
+	check(createerror)
+	defer zk.Close()
+	_, zoowriteerr := zk.WriteString(zkprop)
+	check(zoowriteerr)
 
 	_, zooerr := exec.Command("$HOME/.kafka/kafka/bin/zookeeper-server-start.sh $HOME/.kafka/kafka/config/zookeeper.properties").Output()
 	if zooerr != nil {
-    	return fmt.Errorf("error: %s", zooerr)
-    }
+		return fmt.Errorf("error: %s", zooerr)
+	}
 
-	_, kafkaerr := exec.Command("$HOME/.kafka/kafka/bin/kafka-server-start.sh $HOME/.kafka/kafka/config/server.properties").Output()
-	if kafkaerr != nil {
-    	return fmt.Errorf("error: %s", kafkaerr)
-    }
+	for i := 0; i < replicas; i++ {
+		server, createerror := os.Create(fmt.Sprintf("$HOME/.kafka/kafka/config/server-%d.properties", i))
+		check(createerror)
+		defer server.Close()
+		_, serverwriteerr := server.WriteString(fmt.Sprintf(serverProp, i, 9092, i))
+		check(serverwriteerr)
+
+		_, kafkaerr := exec.Command("$HOME/.kafka/kafka/bin/kafka-server-start.sh $HOME/.kafka/kafka/config/server.properties").Output()
+		if kafkaerr != nil {
+			return fmt.Errorf("error: %s", kafkaerr)
+		}
+	}
+
 	return nil
 }
