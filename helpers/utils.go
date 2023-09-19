@@ -1,18 +1,24 @@
-package provider
+package helpers
 
 import (
 	"fmt"
-	"os"
-	"regexp"
-	"net/http"
 	"io"
-	"os/exec"
 	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"regexp"
 	"strconv"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
-func validateName(v interface{}, k string) (ws []string, es []error) {
+func check(e error) {
+    if e != nil {
+        panic(e)
+    }
+}
+
+func ValidateName(v interface{}, k string) (ws []string, es []error) {
 	var errs []error
 	var warns []string
 	value, ok := v.(string)
@@ -28,7 +34,7 @@ func validateName(v interface{}, k string) (ws []string, es []error) {
 	return warns, errs
 }
 
-func validateReplicas(v interface{}, k string) (ws []string, es []error) {
+func ValidateReplicas(v interface{}, k string) (ws []string, es []error) {
 	var errs []error
 	var warns []string
 	value, ok := v.(int)
@@ -43,7 +49,7 @@ func validateReplicas(v interface{}, k string) (ws []string, es []error) {
 	return warns, errs
 }
 
-func validatePorts(v interface{}, k string) (ws []string, es []error) {
+func ValidatePorts(v interface{}, k string) (ws []string, es []error) {
 	var errs []error
 	var warns []string
 	value, ok := v.(int)
@@ -94,7 +100,7 @@ func downloadBinary(dirPath string) error {
 	return nil
 }
 
-func downloadKafka() error {
+func DownloadKafka() error {
 
 	if _, err := os.Stat(kafkaDir); os.IsNotExist(err) {
       	dirPath, err := createHomeDir(".kafka")
@@ -119,7 +125,7 @@ func downloadKafka() error {
 	return nil
 }
 
-func setupKafka(d *schema.ResourceData) error {
+func SetupKafka(d *schema.ResourceData) error {
 	for _,port := range d.Get("ports").([]int) {
 		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", strconv.Itoa(port)), 5000)
 		if conn != nil {
@@ -133,7 +139,7 @@ func setupKafka(d *schema.ResourceData) error {
     	return fmt.Errorf("error: %s", javaerr)
     }
 
-	downloadkafka := downloadKafka()
+	downloadkafka := DownloadKafka()
 	if downloadkafka != nil {
     	return fmt.Errorf("error: %s", downloadkafka)
     }
@@ -145,5 +151,29 @@ func setupKafka(d *schema.ResourceData) error {
 		}
 	}
 
+	return nil
+}
+
+func StartKafka(d *schema.ResourceData) error {
+	replicas := d.Get("replicas").(int)
+
+	for i := 0; i < replicas; i++ {
+		    f, createerror := os.Create("$HOME/.kafka/kafka/config")
+			check(createerror)
+			defer f.Close()
+			_, writeerr := f.WriteString(fmt.Sprintf(serverProp, i, 9092, i))
+    		check(writeerr)
+
+	}
+
+	_, zooerr := exec.Command("$HOME/.kafka/kafka/bin/zookeeper-server-start.sh $HOME/.kafka/kafka/config/zookeeper.properties").Output()
+	if zooerr != nil {
+    	return fmt.Errorf("error: %s", zooerr)
+    }
+
+	_, kafkaerr := exec.Command("$HOME/.kafka/kafka/bin/kafka-server-start.sh $HOME/.kafka/kafka/config/server.properties").Output()
+	if kafkaerr != nil {
+    	return fmt.Errorf("error: %s", kafkaerr)
+    }
 	return nil
 }

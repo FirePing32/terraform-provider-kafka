@@ -2,29 +2,35 @@ package provider
 
 import (
 	"fmt"
-
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/FirePing32/terraform-provider-kafka/helpers"
 )
 
 func clusterItem() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
+			"name": {
+				Type:         schema.TypeString,
+				Required:     true,
+				Description:  "Name of cluster",
+				ValidateFunc: helpers.ValidateName,
+			},
 			"replicas": {
 				Type:         schema.TypeSet,
 				Required:     true,
-				Description:  "Number of replicas to maintain",
-				ValidateFunc: validateReplicas,
+				Description:  "Number of brokers to maintain",
+				ValidateFunc: helpers.ValidateReplicas,
 				Default: 1,
 			},
 			"ports": {
 				Type:         schema.TypeSet,
 				Required:     true,
 				Description:  "Ports to run Kafka on",
-				ValidateFunc: validatePorts,
+				ValidateFunc: helpers.ValidatePorts,
 			},
 		},
 		Create: clusterCreateItem,
-		// Read:   clusterReadItem,
+		Read:   clusterReadItem,
 		// Update: clusterUpdateItem,
 		// Delete: clusterDeleteItem,
 		// Exists: clusterExistsItem,
@@ -36,11 +42,15 @@ func clusterItem() *schema.Resource {
 
 func clusterCreateItem(resData *schema.ResourceData, m interface{}) error {
 
-	setupkafka := setupKafka(resData)
+	setupkafka := helpers.SetupKafka(resData)
 	if setupkafka != nil {
 		return fmt.Errorf("error: %s", setupkafka)
 	}
 
     return nil
+}
+
+func clusterReadItem(resData *schema.ResourceData, m interface{}) error {
+	return nil
 }
 

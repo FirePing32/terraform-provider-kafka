@@ -3,6 +3,7 @@ package provider
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/FirePing32/terraform-provider-kafka/helpers"
 )
 
 func Provider() terraform.ResourceProvider {
@@ -12,7 +13,7 @@ func Provider() terraform.ResourceProvider {
 				Type:         schema.TypeString,
 				Required:     true,
 				Description:  "The name of the cluster, also acts as it's unique ID",
-				ValidateFunc: validateName,
+				ValidateFunc: helpers.ValidateName,
 			},
 			"tags": {
 				Type:        schema.TypeSet,
