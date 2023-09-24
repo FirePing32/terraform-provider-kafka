@@ -52,14 +52,16 @@ func ValidateReplicas(v interface{}, k string) (ws []string, es []error) {
 func ValidatePorts(v interface{}, k string) (ws []string, es []error) {
 	var errs []error
 	var warns []string
-	value, ok := v.(int)
-	if !ok {
-		errs = append(errs, fmt.Errorf("expected replica count to be integer"))
-		return warns, errs
-	}
-	if value < 1024 || value > 49151 {
-		errs = append(errs, fmt.Errorf("port number should be between 1024 and 49151"))
-		return warns, errs
+	value, ok := v.([]int)
+	for _,v := range value {
+		if !ok {
+			errs = append(errs, fmt.Errorf("expected port number to be integer"))
+			return warns, errs
+		}
+		if v < 1024 || v > 49151 {
+			errs = append(errs, fmt.Errorf("port number should be between 1024 and 49151"))
+			return warns, errs
+		}
 	}
 	return warns, errs
 }
@@ -156,6 +158,7 @@ func SetupKafka(d *schema.ResourceData) error {
 
 func StartKafka(d *schema.ResourceData) error {
 	replicas := d.Get("replicas").(int)
+	ports := d.Get("ports").([]int)
 
 	zk, createerror := os.Create("$HOME/.kafka/kafka/config/zookeeper.properties")
 	check(createerror)
@@ -172,10 +175,10 @@ func StartKafka(d *schema.ResourceData) error {
 		server, createerror := os.Create(fmt.Sprintf("$HOME/.kafka/kafka/config/server-%d.properties", i))
 		check(createerror)
 		defer server.Close()
-		_, serverwriteerr := server.WriteString(fmt.Sprintf(serverProp, i, 9092, i))
+		_, serverwriteerr := server.WriteString(fmt.Sprintf(serverProp, i, ports[i], i))
 		check(serverwriteerr)
 
-		_, kafkaerr := exec.Command("$HOME/.kafka/kafka/bin/kafka-server-start.sh $HOME/.kafka/kafka/config/server.properties").Output()
+		_, kafkaerr := exec.Command(fmt.Sprintf("$HOME/.kafka/kafka/bin/kafka-server-start.sh $HOME/.kafka/kafka/config/server-%d.properties", i)).Output()
 		if kafkaerr != nil {
 			return fmt.Errorf("error: %s", kafkaerr)
 		}

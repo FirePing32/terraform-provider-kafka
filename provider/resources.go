@@ -16,14 +16,14 @@ func clusterItem() *schema.Resource {
 				ValidateFunc: helpers.ValidateName,
 			},
 			"replicas": {
-				Type:         schema.TypeSet,
+				Type:         schema.TypeInt,
 				Required:     true,
 				Description:  "Number of brokers to maintain",
 				ValidateFunc: helpers.ValidateReplicas,
 				Default: 1,
 			},
 			"ports": {
-				Type:         schema.TypeSet,
+				Type:         schema.TypeList,
 				Required:     true,
 				Description:  "Ports to run Kafka on",
 				ValidateFunc: helpers.ValidatePorts,
@@ -45,6 +45,11 @@ func clusterCreateItem(resData *schema.ResourceData, m interface{}) error {
 	setupkafka := helpers.SetupKafka(resData)
 	if setupkafka != nil {
 		return fmt.Errorf("error: %s", setupkafka)
+	}
+
+	startkafka := helpers.StartKafka(resData)
+	if startkafka != nil {
+		return fmt.Errorf("error: %s", startkafka)
 	}
 
     return nil
