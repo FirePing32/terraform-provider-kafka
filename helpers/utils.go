@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"encoding/json"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
@@ -182,6 +183,33 @@ func StartKafka(d *schema.ResourceData) error {
 		if kafkaerr != nil {
 			return fmt.Errorf("error: %s", kafkaerr)
 		}
+	}
+
+	return nil
+}
+
+func storeClusterMetadata(d *schema.ResourceData) error {
+	clusterData := map[string]interface{} {
+		"name": d.Get("name"),
+		"replicas": d.Get("replicas"),
+		"ports": d.Get("ports"),
+	}
+	jsonMarshal, err := json.Marshal(clusterData)
+	if err != nil {
+		return fmt.Errorf("could not marshal json: %s", err)
+	}
+
+	_, err = os.OpenFile("$HOME/.kafka/clusterdata.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		_, err = os.Create("$HOME/.kafka/clusterdata.json")
+		if err != nil {
+			return fmt.Errorf("could not create config file: %s", err)
+		}
+	}
+	writeerr := os.WriteFile("$HOME/.kafka/clusterdata.json", jsonMarshal, 0644)
+
+	if writeerr != nil {
+		return fmt.Errorf("could not marshal json: %s", err)
 	}
 
 	return nil
