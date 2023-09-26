@@ -2,6 +2,8 @@ package provider
 
 import (
 	"fmt"
+	"os"
+	"io"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/FirePing32/terraform-provider-kafka/helpers"
 )
@@ -56,6 +58,17 @@ func clusterCreateItem(resData *schema.ResourceData, m interface{}) error {
 }
 
 func clusterReadItem(resData *schema.ResourceData, m interface{}) error {
+
+	metadata, err := os.Open(fmt.Sprint(helpers.KafkaDir, "/clusterdata.json"))
+	if err != nil {
+		return fmt.Errorf("error opening metadata file: %s", err)
+	}
+	defer metadata.Close()
+
+	byteValue, _ := io.ReadAll(jsonFile)
+
+	// var metaData Clusters
+
 	return nil
 }
 
