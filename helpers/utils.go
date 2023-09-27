@@ -165,8 +165,13 @@ func StartKafka(d *schema.ResourceData) error {
 	zk, createerror := os.Create(fmt.Sprint(KafkaDir, "/kafka/config/zookeeper.properties"))
 	check(createerror)
 	defer zk.Close()
-	_, zoowriteerr := zk.WriteString(zkprop)
-	check(zoowriteerr)
+	_, err := zk.WriteString(zkprop)
+	check(err)
+
+	clusterdata, err := os.Create(fmt.Sprint(KafkaDir, "/clusterdata.json"))
+	check(err)
+	_, err = clusterdata.WriteString("[]")
+	check(err)
 
 	_, zooerr := exec.Command(fmt.Sprint(KafkaDir, "/kafka/bin/zookeeper-server-start.sh ", KafkaDir, "/kafka/config/zookeeper.properties")).Output()
 	if zooerr != nil {
@@ -195,23 +200,34 @@ func StartKafka(d *schema.ResourceData) error {
 }
 
 func storeClusterMetadata(d *schema.ResourceData) error {
-	clusterData := map[string]interface{}{
-		"name":     d.Get("name").(string),
-		"replicas": d.Get("replicas").(string),
-		"ports":    d.Get("ports").([]int),
-	}
-	jsonMarshal, err := json.Marshal(clusterData)
-	if err != nil {
-		return fmt.Errorf("could not marshal json: %s", err)
-	}
 
-	f, err := os.OpenFile(fmt.Sprint(KafkaDir, "/clusterdata.json"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	id := d.Id()
+	name := d.Get("name").(string)
+	replicas := d.Get("replicas").(int)
+	ports := d.Get("ports").([]int)
+
+	f, err := os.OpenFile(fmt.Sprint(KafkaDir, "/clusterdata.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create config file: %s", err)
 	}
 	defer f.Close()
-	if _, err = f.Write(jsonMarshal); err != nil {
-		return fmt.Errorf("could not write config: %s", err)
+
+	var metaData []Cluster
+	byteValue, _ := io.ReadAll(f)
+	err = json.Unmarshal(byteValue, &metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
+
+	metaData = append(metaData, Cluster{Id: id, Name: name, Replicas: replicas, Ports: ports})
+
+	marshalData, err := json.Marshal(metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
+	_, err = f.Write(marshalData)
+	if err != nil {
+		return fmt.Errorf("could not write config file: %s", err)
 	}
 
 	return nil

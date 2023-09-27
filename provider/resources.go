@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"io"
+	"encoding/json"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/FirePing32/terraform-provider-kafka/helpers"
 )
@@ -59,15 +60,27 @@ func clusterCreateItem(resData *schema.ResourceData, m interface{}) error {
 
 func clusterReadItem(resData *schema.ResourceData, m interface{}) error {
 
-	metadata, err := os.Open(fmt.Sprint(helpers.KafkaDir, "/clusterdata.json"))
+	f, err := os.OpenFile(fmt.Sprint(helpers.KafkaDir, "/clusterdata.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return fmt.Errorf("error opening metadata file: %s", err)
+		return fmt.Errorf("could not create config file: %s", err)
 	}
-	defer metadata.Close()
+	defer f.Close()
 
-	byteValue, _ := io.ReadAll(jsonFile)
+	var metaData []helpers.Cluster
+	byteValue, _ := io.ReadAll(f)
+	err = json.Unmarshal(byteValue, &metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
 
-	// var metaData Clusters
+	id := resData.Get("id").(string)
+	for _,v := range metaData {
+		if v.Id == id {
+			resData.Set("name", v.Name)
+			resData.Set("replicas", v.Replicas)
+			resData.Set("ports", v.Ports)
+		}
+	}
 
 	return nil
 }
