@@ -232,3 +232,21 @@ func storeClusterMetadata(d *schema.ResourceData) error {
 
 	return nil
 }
+
+func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
+
+	replicas := d.Get("replicas").(int)
+	ports := d.Get("ports").([]int)
+
+	if len(ports) != replicas {
+		return fmt.Errorf("number of ports does not match the number of replicas")
+	}
+
+	if metadata.Replicas > replicas {
+		return nil
+	} else if metadata.Replicas < replicas {
+		return nil
+	}
+
+	return nil
+}

@@ -34,7 +34,7 @@ func clusterItem() *schema.Resource {
 		},
 		Create: clusterCreateItem,
 		Read:   clusterReadItem,
-		// Update: clusterUpdateItem,
+		Update: clusterUpdateItem,
 		// Delete: clusterDeleteItem,
 		// Exists: clusterExistsItem,
 		Importer: &schema.ResourceImporter{
@@ -85,3 +85,40 @@ func clusterReadItem(resData *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+
+func clusterUpdateItem(resData *schema.ResourceData, m interface{}) error {
+
+	id := resData.Get("id").(string)
+	name := resData.Get("name").(string)
+	replicas := resData.Get("replicas").(int)
+	ports := resData.Get("ports").([]int)
+
+	f, err := os.OpenFile(fmt.Sprint(helpers.KafkaDir, "/clusterdata.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("could not create config file: %s", err)
+	}
+	defer f.Close()
+
+	var metaData []helpers.Cluster
+	byteValue, _ := io.ReadAll(f)
+	err = json.Unmarshal(byteValue, &metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
+
+	for _,v := range metaData {
+		if v.Id == id {
+
+			err = helpers.UpdateCluster(resData, v)
+			if err != nil {
+				return fmt.Errorf("cannot update cluster: %s", err)
+			}
+
+			v.Name = name
+			v.Replicas = replicas
+			v.Ports = ports
+		}
+	}
+
+	return nil
+}
