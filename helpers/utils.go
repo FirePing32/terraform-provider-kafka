@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
-
+	"golang.org/x/exp/slices"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
@@ -242,8 +242,27 @@ func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
 		return fmt.Errorf("number of ports does not match the number of replicas")
 	}
 
-	if metadata.Replicas > replicas {
+	if replicas == 0 {
 		return nil
+	}
+
+	if metadata.Replicas > replicas {
+		fileCount := 0
+		for _,v := range ports {
+			if !slices.Contains(metadata.Ports, v) {
+				f, err := os.OpenFile(fmt.Sprintf("%s/kafka/config/server-%d.properties", KafkaDir, replicas+fileCount), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+				check(err)
+				defer f.Close()
+				_, err = f.WriteString(fmt.Sprintf(serverProp, replicas+fileCount, v, replicas+fileCount))
+				check(err)
+				fileCount += 1
+
+				_, kafkaerr := exec.Command(fmt.Sprintf("%s/kafka/bin/kafka-server-start.sh %s/kafka/config/server-%d.properties", KafkaDir, KafkaDir, replicas+fileCount)).Output()
+				if kafkaerr != nil {
+					return fmt.Errorf("error: %s", kafkaerr)
+				}
+			}
+		}
 	} else if metadata.Replicas < replicas {
 		return nil
 	}
