@@ -243,10 +243,13 @@ func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
 	}
 
 	if replicas == 0 {
-		return nil
+		_, kafkaerr := exec.Command(fmt.Sprintf("%s/kafka/bin/kafka-server-stop.sh", KafkaDir)).Output()
+		if kafkaerr != nil {
+			return fmt.Errorf("error: %s", kafkaerr)
+		}
 	}
 
-	if metadata.Replicas > replicas {
+	if metadata.Replicas < replicas {
 		fileCount := 0
 		for _,v := range ports {
 			if !slices.Contains(metadata.Ports, v) {
@@ -263,8 +266,23 @@ func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
 				}
 			}
 		}
-	} else if metadata.Replicas < replicas {
-		return nil
+	} else if metadata.Replicas > replicas {
+		fileCount := 0
+		for _,v := range ports {
+			if !slices.Contains(metadata.Ports, v) {
+				f, err := os.OpenFile(fmt.Sprintf("%s/kafka/bin/kafka-stop-broker.sh", KafkaDir), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+				check(err)
+				defer f.Close()
+				_, err = f.WriteString(fmt.Sprintf(brokerStop, v))
+				check(err)
+				fileCount += 1
+
+				_, kafkaerr := exec.Command(fmt.Sprintf("%s/kafka/bin/kafka-stop-broker.sh", KafkaDir)).Output()
+				if kafkaerr != nil {
+					return fmt.Errorf("error: %s", kafkaerr)
+				}
+			}
+		}
 	}
 
 	return nil

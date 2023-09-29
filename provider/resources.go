@@ -106,7 +106,7 @@ func clusterUpdateItem(resData *schema.ResourceData, m interface{}) error {
 		return fmt.Errorf("error marshaling data: %s", err)
 	}
 
-	for _,v := range metaData {
+	for i,v := range metaData {
 		if v.Id == id {
 
 			err = helpers.UpdateCluster(resData, v)
@@ -114,10 +114,19 @@ func clusterUpdateItem(resData *schema.ResourceData, m interface{}) error {
 				return fmt.Errorf("cannot update cluster: %s", err)
 			}
 
-			v.Name = name
-			v.Replicas = replicas
-			v.Ports = ports
+			metaData[i].Name = name
+			metaData[i].Replicas = replicas
+			metaData[i].Ports = ports
 		}
+	}
+
+	marshalData, err := json.Marshal(metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
+	_, err = f.Write(marshalData)
+	if err != nil {
+		return fmt.Errorf("could not write config file: %s", err)
 	}
 
 	return nil
