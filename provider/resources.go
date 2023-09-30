@@ -38,7 +38,7 @@ func clusterItem() *schema.Resource {
 		Read:   clusterReadItem,
 		Update: clusterUpdateItem,
 		Delete: clusterDeleteItem,
-		// Exists: clusterExistsItem,
+		Exists: clusterExistsItem,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -175,4 +175,30 @@ func clusterDeleteItem(resData *schema.ResourceData, m interface{}) error {
 	}
 
 	return nil
+}
+
+func clusterExistsItem(resData *schema.ResourceData, m interface{}) (bool,error) {
+
+	id := resData.Id()
+	f, err := os.OpenFile(fmt.Sprint(helpers.KafkaDir, "/clusterdata.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return false, fmt.Errorf("could not create config file: %s", err)
+	}
+	defer f.Close()
+
+	var metaData []helpers.Cluster
+	byteValue, _ := io.ReadAll(f)
+	err = json.Unmarshal(byteValue, &metaData)
+	if err != nil {
+		return false, fmt.Errorf("error marshaling data: %s", err)
+	}
+
+	for _,v := range metaData {
+		if v.Id == id {
+			out, err := helpers.CheckCluster(v)
+			return out,err
+		}
+	}
+
+	return false, fmt.Errorf("error: cluster not found")
 }

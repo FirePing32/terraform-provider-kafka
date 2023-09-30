@@ -307,3 +307,19 @@ func DeleteCluster(metadata Cluster) error {
 
 	return nil
 }
+
+func CheckCluster(metadata Cluster) (bool,error) {
+	ports := metadata.Ports
+
+	for _,v := range ports {
+		out, kafkaerr := exec.Command(fmt.Sprintf("lsof -i :%d | grep 'kafka' | awk '{print $1}'", v)).Output()
+		if kafkaerr != nil {
+			return false, fmt.Errorf("error: %s", kafkaerr)
+		}
+		if string(out) != "kafka" {
+			return false, fmt.Errorf("error: Kafka not running on port %d", v)
+		}
+	}
+
+	return true,nil
+}
