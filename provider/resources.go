@@ -1,12 +1,14 @@
 package provider
 
 import (
-	"fmt"
-	"os"
-	"io"
 	"encoding/json"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"fmt"
+	"io"
+	"os"
+
 	"github.com/FirePing32/terraform-provider-kafka/helpers"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"golang.org/x/exp/slices"
 )
 
 func clusterItem() *schema.Resource {
@@ -35,7 +37,7 @@ func clusterItem() *schema.Resource {
 		Create: clusterCreateItem,
 		Read:   clusterReadItem,
 		Update: clusterUpdateItem,
-		// Delete: clusterDeleteItem,
+		Delete: clusterDeleteItem,
 		// Exists: clusterExistsItem,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -79,6 +81,7 @@ func clusterReadItem(resData *schema.ResourceData, m interface{}) error {
 			resData.Set("name", v.Name)
 			resData.Set("replicas", v.Replicas)
 			resData.Set("ports", v.Ports)
+			break
 		}
 	}
 
@@ -117,6 +120,7 @@ func clusterUpdateItem(resData *schema.ResourceData, m interface{}) error {
 			metaData[i].Name = name
 			metaData[i].Replicas = replicas
 			metaData[i].Ports = ports
+			break
 		}
 	}
 
@@ -125,6 +129,47 @@ func clusterUpdateItem(resData *schema.ResourceData, m interface{}) error {
 		return fmt.Errorf("error marshaling data: %s", err)
 	}
 	_, err = f.Write(marshalData)
+	if err != nil {
+		return fmt.Errorf("could not write config file: %s", err)
+	}
+
+	return nil
+}
+
+func clusterDeleteItem(resData *schema.ResourceData, m interface{}) error {
+
+	id := resData.Get("id").(string)
+
+	f, err := os.OpenFile(fmt.Sprint(helpers.KafkaDir, "/clusterdata.json"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("could not create config file: %s", err)
+	}
+	defer f.Close()
+
+	var metaData []helpers.Cluster
+	byteValue, _ := io.ReadAll(f)
+	err = json.Unmarshal(byteValue, &metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
+
+
+	for i,v := range metaData {
+		if v.Id == id {
+			err = helpers.DeleteCluster(v)
+			if err != nil {
+				return fmt.Errorf("cannot delete cluster: %s", err)
+			}
+			metaData = slices.Delete(metaData, i, i+1)
+			break
+		}
+	}
+
+	marshaldata, err := json.Marshal(metaData)
+	if err != nil {
+		return fmt.Errorf("error marshaling data: %s", err)
+	}
+	_, err = f.Write(marshaldata)
 	if err != nil {
 		return fmt.Errorf("could not write config file: %s", err)
 	}

@@ -3,6 +3,8 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"golang.org/x/exp/slices"
 	"io"
 	"net"
 	"net/http"
@@ -10,8 +12,6 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
-	"golang.org/x/exp/slices"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func check(e error) {
@@ -251,7 +251,7 @@ func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
 
 	if metadata.Replicas < replicas {
 		fileCount := 0
-		for _,v := range ports {
+		for _, v := range ports {
 			if !slices.Contains(metadata.Ports, v) {
 				f, err := os.OpenFile(fmt.Sprintf("%s/kafka/config/server-%d.properties", KafkaDir, replicas+fileCount), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 				check(err)
@@ -268,7 +268,7 @@ func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
 		}
 	} else if metadata.Replicas > replicas {
 		fileCount := 0
-		for _,v := range ports {
+		for _, v := range ports {
 			if !slices.Contains(metadata.Ports, v) {
 				f, err := os.OpenFile(fmt.Sprintf("%s/kafka/bin/kafka-stop-broker.sh", KafkaDir), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 				check(err)
@@ -282,6 +282,26 @@ func UpdateCluster(d *schema.ResourceData, metadata Cluster) error {
 					return fmt.Errorf("error: %s", kafkaerr)
 				}
 			}
+		}
+	}
+
+	return nil
+}
+
+func DeleteCluster(metadata Cluster) error {
+
+	ports := metadata.Ports
+
+	for _,v := range ports {
+		f, err := os.OpenFile(fmt.Sprintf("%s/kafka/bin/kafka-stop-broker.sh", KafkaDir), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		check(err)
+		defer f.Close()
+		_, err = f.WriteString(fmt.Sprintf(brokerStop, v))
+		check(err)
+
+		_, kafkaerr := exec.Command(fmt.Sprintf("%s/kafka/bin/kafka-stop-broker.sh", KafkaDir)).Output()
+		if kafkaerr != nil {
+			return fmt.Errorf("error: %s", kafkaerr)
 		}
 	}
 
